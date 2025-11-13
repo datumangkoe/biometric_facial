@@ -1,11 +1,5 @@
 altgraph==0.17.4
 anyio==4.10.0
-asgiref==3.8.1
-attrs==25.3.0
-certifi==2025.4.26
-cffi==1.17.1
-channels==4.2.2
-channels_redis==4.2.1
 chardet==5.2.0
 charset-normalizer==3.4.2
 click==8.2.1
@@ -14,12 +8,6 @@ contourpy==1.3.3
 cryptography==45.0.6
 cssselect==1.3.0
 cycler==0.12.1
-dict2xml==1.7.6
-Django==5.2.1
-django-encrypted-model-fields==0.6.5
-django-jsignature==0.12
-django-ph-geography==1.0.0
-django-simple-history==3.8.0
 dlib==20.0.0
 docopt==0.6.2
 et_xmlfile==2.0.0
@@ -40,7 +28,6 @@ Jinja2==3.1.6
 joblib==1.5.1
 kiwisolver==1.4.9
 lazy_loader==0.4
-lxml==5.4.0
 macholib==1.16.3
 MarkupSafe==3.0.2
 matplotlib==3.10.7
@@ -53,7 +40,6 @@ opencv-python==4.12.0.88
 openpyxl==3.1.5
 packaging==25.0
 pandas==2.3.2
-pdfrw==0.4
 pillow==11.2.1
 platformdirs==4.3.8
 psycopg==3.2.9
@@ -74,7 +60,6 @@ PyWavelets==1.9.0
 PyYAML==6.0.2
 redis==6.2.0
 regex==2024.11.6
-reportlab==4.4.1
 requests==2.32.3
 requests-file==2.1.0
 requests-toolbelt==1.0.0
@@ -97,9 +82,5 @@ transformers==4.52.4
 typing_extensions==4.14.0
 tzdata==2025.2
 urllib3==2.4.0
-uvicorn==0.34.2
 wheel==0.45.1
-xlrd==2.0.1
-XlsxWriter==3.2.3
-xmltodict==0.14.2
 zeep==4.3.1

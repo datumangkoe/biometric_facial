@@ -1,3 +1,37 @@
+# name: Build Windows EXE with Dependencies
+
+# on:
+#   workflow_dispatch:
+
+# jobs:
+#   build:
+#     runs-on: windows-latest
+#     steps:
+#       - uses: actions/checkout@v4
+
+#       - uses: actions/setup-python@v5
+#         with:
+#           python-version: '3.13'
+
+#       - run: pip install -r requirements.txt
+
+#       # Get the models folder using Python and save to a file
+#       - run: |
+#           python -c "import face_recognition_models, os; print(os.path.join(os.path.dirname(face_recognition_models.__file__), 'models'))" > models_path.txt
+#         shell: pwsh
+
+#       # Read models path and include it in PyInstaller build
+#       - run: |
+#           $MODELS_DIR = Get-Content models_path.txt
+#           Write-Host "Including models from $MODELS_DIR"
+#           pyinstaller --onefile --windowed --add-data "$MODELS_DIR;face_recognition_models/models" facialrecog.py
+#         shell: pwsh
+
+#       - uses: actions/upload-artifact@v4
+#         with:
+#           name: windows-exe
+#           path: dist/*.exe
+
 name: Build Windows EXE with Dependencies
 
 on:
@@ -6,27 +40,42 @@ on:
 jobs:
   build:
     runs-on: windows-latest
+
     steps:
+      # 1️⃣ Checkout repo
       - uses: actions/checkout@v4
 
+      # 2️⃣ Setup Python
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
 
+      # 3️⃣ Install dependencies
       - run: pip install -r requirements.txt
 
-      # Get the models folder using Python and save to a file
+      # 4️⃣ Ensure a default settings.json exists
+      - run: |
+          if (-Not (Test-Path "settings.json")) {
+              '{"server_url": "http://127.0.0.1:8000"}' | Out-File -Encoding UTF8 settings.json
+          }
+        shell: pwsh
+
+      # 5️⃣ Get face_recognition_models models path
       - run: |
           python -c "import face_recognition_models, os; print(os.path.join(os.path.dirname(face_recognition_models.__file__), 'models'))" > models_path.txt
         shell: pwsh
 
-      # Read models path and include it in PyInstaller build
+      # 6️⃣ Build EXE with PyInstaller, including models and settings.json
       - run: |
           $MODELS_DIR = Get-Content models_path.txt
           Write-Host "Including models from $MODELS_DIR"
-          pyinstaller --onefile --windowed --add-data "$MODELS_DIR;face_recognition_models/models" facialrecog.py
+          pyinstaller --onefile --windowed `
+            --add-data "$MODELS_DIR;face_recognition_models/models" `
+            --add-data "settings.json;." `
+            facialrecog.py
         shell: pwsh
 
+      # 7️⃣ Upload EXE artifact
       - uses: actions/upload-artifact@v4
         with:
           name: windows-exe

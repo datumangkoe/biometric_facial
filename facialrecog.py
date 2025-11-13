@@ -7,15 +7,40 @@ from PIL import Image, ImageTk
 import face_recognition
 import time
 import requests
+import json
+import sys 
+
+def get_settings_path():
+    if getattr(sys, 'frozen', False):
+        # Running as PyInstaller EXE
+        return os.path.join(os.path.dirname(sys.executable), "settings.json")
+    return "settings.json"
+
+SETTINGS_FILE = get_settings_path()
+
+# Load settings or defaults
+def load_settings():
+    if os.path.exists(SETTINGS_FILE):
+        with open(SETTINGS_FILE, "r") as f:
+            return json.load(f)
+    return {"server_url": "http://127.0.0.1:8000"}
+
+def save_settings(settings):
+    with open(SETTINGS_FILE, "w") as f:
+        json.dump(settings, f, indent=4)
+
+settings = load_settings()
+server_url = settings.get("server_url")
 
 # === SERVER COMMUNICATION ===
 def send_login_to_server(user_id, status):
     """
     Sends login/logout request to server and returns username and full_name for popup.
     """
-    server_url = f"http://192.168.1.20:8000/dtr/timeclock?id={user_id}&status={status}"
+    #server_url = f"http://192.168.1.20:8000/dtr/timeclock?id={user_id}&status={status}"
+    
     try:
-        response = requests.get(server_url)
+        response = requests.get(f"{server_url}/dtr/timeclock?id={user_id}&status={status}")
         data = response.json()
 
         server_username = data.get('username', user_id)
@@ -62,8 +87,12 @@ class FacialBiometricLoginApp:
         self.root = root
         self.root.title("Eversoft Facial Biometric Login System")
         self.root.geometry("1200x700")
+        self.root.attributes("-fullscreen", True)  # <-- Enable fullscreen automatically
         self.root.configure(bg="#0B132B")
 
+        
+        # Optional: bind Escape key to exit fullscreen
+        self.root.bind("<Escape>", lambda e: self.root.attributes("-fullscreen", False))
         # Variables
         self.cap = None
         self.mode = None
@@ -119,7 +148,7 @@ class FacialBiometricLoginApp:
         self.button_style = {
             "font": ("Arial", 13, "bold"),
             "bg": "#3A506B",
-            "fg": "#FFFFFF",
+            "fg": "#000000",
             "activebackground": "#5BC0BE",
             "activeforeground": "#FFFFFF",
             "relief": "flat",
@@ -135,6 +164,7 @@ class FacialBiometricLoginApp:
         self.add_button("Logout with Face", self.logout_user)
         self.add_button("Delete Registered Face", self.delete_face)
         self.add_button("Stop Camera", self.stop_camera)  # <<< New button
+        self.add_button("Settings", self.open_settings)  # Settings button
 
         # --- Message Area ---
         msg_label = tk.Label(
@@ -281,6 +311,36 @@ class FacialBiometricLoginApp:
         # Here you can optionally print to debug if we reach this point
         #print(f"Logging out user: {self.logged_in_user}")
 
+    # === Settings Panel ===
+    def open_settings(self):
+        global server_url, settings
+
+        settings_win = tk.Toplevel(self.root)
+        settings_win.title("Settings")
+        settings_win.configure(bg="#1C2541")
+        settings_win.geometry("400x200")
+        settings_win.attributes('-topmost', True)
+
+        tk.Label(settings_win, text="Server URL:", font=("Arial", 12, "bold"),
+                 bg="#1C2541", fg="#6FFFE9").pack(pady=(20, 5))
+
+        server_url_var = tk.StringVar(value=server_url)
+        url_entry = tk.Entry(settings_win, textvariable=server_url_var, font=("Arial", 12), width=40)
+        url_entry.pack(pady=5)
+
+        def save_settings_btn():
+            global server_url, settings
+            server_url = server_url_var.get()
+            settings['server_url'] = server_url
+            save_settings(settings)
+            self.add_message(f"✅ Server URL updated to: {server_url}")
+            settings_win.destroy()
+
+        save_btn = tk.Button(settings_win, text="Save", font=("Arial", 12, "bold"),
+                             bg="#3A506B", fg="#FFFFFF", activebackground="#5BC0BE",
+                             width=15, command=save_settings_btn)
+        save_btn.pack(pady=20)
+
     # === Redesigned Popup ===
     def show_popup(self, username_fullname, status="success", duration=3000):
         popup = tk.Toplevel(self.root)
@@ -362,8 +422,8 @@ class FacialBiometricLoginApp:
                                 self.add_message("⚠️ User not registered in the system.")
                                 self.show_popup("User not registered", status="error")  # Show error popup
                                 break
-                            self.show_popup(f"✅ Login successful for {server_full_name} - {server_username}", status="success")
-                            self.add_message(f"✅ Login successful for {server_full_name} - {server_username}")
+                            self.show_popup(f"✅ Login successful for {server_full_name}", status="success")
+                            self.add_message(f"✅ Login successful for {server_full_name}")
                             self.logged_in = True
                             match_found = True
                             self.status_text = f"Logged in: {server_full_name}"  # Instead of name, show full name from server
@@ -387,7 +447,7 @@ class FacialBiometricLoginApp:
                                 self.add_message("⚠️ User not registered or not logged in.")
                                 self.show_popup("User not registered or not logged in", status="error")  # Show error popup
                                 break
-                            self.show_popup(f"✅ Logout successful for {server_full_name} - {server_username}", status="success")
+                            self.show_popup(f"✅ Logout successful for {server_full_name}", status="success")
                             self.add_message(f"✅ Logout successful for {server_username}")
                             match_found = True
                             self.logged_out = True
