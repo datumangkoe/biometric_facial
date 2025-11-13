@@ -56,7 +56,7 @@ jobs:
       # 4️⃣ Ensure a default settings.json exists
       - run: |
           if (-Not (Test-Path "settings.json")) {
-              '{"server_url": "http://127.0.0.1:8000"}' | Out-File -Encoding UTF8 settings.json
+              '{"server_url": "http://192.168.1.20:8000"}' | Out-File -Encoding UTF8 settings.json
           }
         shell: pwsh
 
@@ -65,13 +65,14 @@ jobs:
           python -c "import face_recognition_models, os; print(os.path.join(os.path.dirname(face_recognition_models.__file__), 'models'))" > models_path.txt
         shell: pwsh
 
-      # 6️⃣ Build EXE with PyInstaller, including models and settings.json
+      # 6️⃣ Build EXE with PyInstaller, include models, settings.json, and icon
       - run: |
           $MODELS_DIR = Get-Content models_path.txt
           Write-Host "Including models from $MODELS_DIR"
           pyinstaller --onefile --windowed `
             --add-data "$MODELS_DIR;face_recognition_models/models" `
             --add-data "settings.json;." `
+            --icon "icon.ico" `
             facialrecog.py
         shell: pwsh
 
@@ -80,3 +81,4 @@ jobs:
         with:
           name: windows-exe
           path: dist/*.exe
+
