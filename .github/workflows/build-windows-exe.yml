@@ -11,9 +11,14 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
-      - run: pip install pyinstaller
-      - run: pip install -r requirements.txt  # installs your site-packages
-      - run: pyinstaller --onefile --windowed facialrecog.py
+      - run: pip install -r requirements.txt
+      - run: |
+          # Find the models folder dynamically
+          python -c "import face_recognition_models; import os; print(os.path.join(os.path.dirname(face_recognition_models.__file__), 'models'))" > models_path.txt
+      - run: |
+          MODELS_DIR=$(cat models_path.txt)
+          echo "Including models from $MODELS_DIR"
+          pyinstaller --onefile --windowed --add-data "$MODELS_DIR;face_recognition_models/models" facialrecog.py
       - uses: actions/upload-artifact@v4
         with:
           name: windows-exe
