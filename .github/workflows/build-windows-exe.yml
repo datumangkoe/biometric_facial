@@ -8,17 +8,25 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
+
       - run: pip install -r requirements.txt
+
+      # Get the models folder using Python and save to a file
       - run: |
-          # Find the models folder dynamically
-          python -c "import face_recognition_models; import os; print(os.path.join(os.path.dirname(face_recognition_models.__file__), 'models'))" > models_path.txt
+          python -c "import face_recognition_models, os; print(os.path.join(os.path.dirname(face_recognition_models.__file__), 'models'))" > models_path.txt
+        shell: pwsh
+
+      # Read models path and include it in PyInstaller build
       - run: |
-          MODELS_DIR=$(cat models_path.txt)
-          echo "Including models from $MODELS_DIR"
+          $MODELS_DIR = Get-Content models_path.txt
+          Write-Host "Including models from $MODELS_DIR"
           pyinstaller --onefile --windowed --add-data "$MODELS_DIR;face_recognition_models/models" facialrecog.py
+        shell: pwsh
+
       - uses: actions/upload-artifact@v4
         with:
           name: windows-exe
