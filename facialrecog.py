@@ -67,7 +67,7 @@ def send_login_to_server(user_id, status):
 # === CONFIGURATION ===
 FACE_TEMPLATE_FILE = "face_templates.npz"
 CAPTURE_FRAMES = 5
-RECOGNITION_TOLERANCE = 0.4  # lower = stricter
+RECOGNITION_TOLERANCE = 0.32  # lower = stricter
 
 # === Load Haar Cascade ===
 face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
@@ -415,7 +415,7 @@ class FacialBiometricLoginApp:
                     match_found = False
                     for name, templates in self.face_templates.items():
                         matches = face_recognition.compare_faces(templates, encoding, tolerance=RECOGNITION_TOLERANCE)
-                        if matches.count(True) >= max(1, len(templates)//2):
+                        if matches.count(True) >= 4 and matches[0] == True:#max(1, len(templates)//2):
                             server_username, server_full_name = send_login_to_server(name, "login")
                             if server_username is None:  # Handle fail case (e.g. user not registered)
                                 self.status_text = "Login failed"
