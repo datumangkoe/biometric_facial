@@ -166,6 +166,7 @@ class FacialBiometricLoginApp:
         self.add_button("Stop Camera", self.stop_camera)  # <<< New button
         self.add_button("Settings", self.open_settings)  # Settings button
         self.add_button("Login with ID Only", self.login_with_id_only)
+        self.add_button("Logout with ID Only", self.logout_with_id_only)
 
         # --- Message Area ---
         msg_label = tk.Label(
@@ -312,7 +313,25 @@ class FacialBiometricLoginApp:
         # Success
         self.show_popup(f"✅ Login Successful for {server_full_name}", status="success")
         self.add_message(f"User '{server_full_name}' logged in successfully.")
-    
+
+    def logout_with_id_only(self):
+        user_id = simpledialog.askstring("Logout", "Enter User ID:")
+        if not user_id:
+            return
+
+        # Send login request WITHOUT face
+        server_username, server_full_name = send_login_to_server(user_id, "logout")
+
+        # Handle server errors
+        if server_username is None:
+            self.show_popup(f"❌ {server_full_name}", status="error")
+            self.add_message(f"⚠️ Logout failed: {server_full_name}")
+            return
+
+        # Success
+        self.show_popup(f"✅ Login Successful for {server_full_name}", status="success")
+        self.add_message(f"User '{server_full_name}' logged in successfully.")
+
     # === Logout User ===
     def logout_user(self):
         self.logged_out = False
