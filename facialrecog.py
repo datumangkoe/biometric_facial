@@ -66,7 +66,7 @@ def send_login_to_server(user_id, status):
 
 # === CONFIGURATION ===
 FACE_TEMPLATE_FILE = "face_templates.npz"
-CAPTURE_FRAMES = 10
+CAPTURE_FRAMES = 5
 RECOGNITION_TOLERANCE = 0.32  # lower = stricter
 MIN_FACE_SIZE = 170#120   # too far
 MAX_FACE_SIZE = 200#300   # too close
@@ -105,20 +105,43 @@ class FacialBiometricLoginApp:
         self.logged_out = False
         self.logged_in_user = None
         self.user_id = None
+        self.last_popup_message = None
         self.status_text = ""  # Overlay text on camera
 
         # === Title (Scrolling) ===
-        self.title_text = "   EVERSOFT FACIAL BIOMETRIC LOGIN SYSTEM   "
-        self.title_index = 0
+        # self.title_text = "   EVERSOFT FACIAL BIOMETRIC LOGIN SYSTEM   "
+        # self.title_index = 0
+        # self.title_label = tk.Label(
+        #     root,
+        #     text=self.title_text,
+        #     font=("Arial Black", 30),
+        #     fg="#6FFFE9",
+        #     bg="#0B132B"
+        # )
+        # self.title_label.pack(pady=10)
+        title_frame = tk.Frame(root, bg="#0B132B")
+        title_frame.pack(pady=10)
+
+        # Load and display the logo
+        logo_image = Image.open("logo.png")
+        logo_image = logo_image.resize((80, 80), Image.Resampling.LANCZOS)  # Updated Pillow resize
+        logo_photo = ImageTk.PhotoImage(logo_image)
+
+        logo_label = tk.Label(title_frame, image=logo_photo, bg="#0B132B")
+        logo_label.image = logo_photo  # keep a reference
+        logo_label.pack(side=tk.LEFT, padx=(0, 10))
+
+        # Title text next to the logo
+        self.title_text = "DAHFI FACIAL BIOMETRIC LOGIN SYSTEM"
         self.title_label = tk.Label(
-            root,
+            title_frame,  # <-- attach to title_frame
             text=self.title_text,
             font=("Arial Black", 30),
             fg="#6FFFE9",
             bg="#0B132B"
         )
-        self.title_label.pack(pady=10)
-        self.animate_title()
+        self.title_label.pack(side=tk.LEFT)
+       # self.animate_title()
 
         # === Clock ===
         self.time_label = tk.Label(
@@ -203,11 +226,11 @@ class FacialBiometricLoginApp:
         scrollbar.config(command=self.message_text.yview)
 
     # === Title scrolling ===
-    def animate_title(self):
-        display_text = self.title_text[self.title_index:] + self.title_text[:self.title_index]
-        self.title_label.config(text=display_text)
-        self.title_index = (self.title_index + 1) % len(self.title_text)
-        self.root.after(200, self.animate_title)
+    # def animate_title(self):
+    #     display_text = self.title_text[self.title_index:] + self.title_text[:self.title_index]
+    #     self.title_label.config(text=display_text)
+    #     self.title_index = (self.title_index + 1) % len(self.title_text)
+    #     self.root.after(200, self.animate_title)
 
     # === Clock update ===
     def update_clock(self):
@@ -266,34 +289,136 @@ class FacialBiometricLoginApp:
         self.mode = None
         self.status_text = ""
 
+    def ask_password(self):
+        pw_window = tk.Toplevel(self.root)
+        pw_window.title("Enter Admin Password")
+        pw_window.geometry("350x160")
+        pw_window.configure(bg="#1C2541")
+        pw_window.grab_set()
 
+        tk.Label(
+            pw_window,
+            text="Enter admin password to continue:",
+            bg="#1C2541",
+            fg="#6FFFE9",
+            font=("Arial", 12, "bold")
+        ).pack(pady=10)
+
+        pw_var = tk.StringVar()
+        pw_entry = tk.Entry(
+            pw_window, textvariable=pw_var, show="*",
+            font=("Arial", 12), width=25
+        )
+        pw_entry.pack(pady=5)
+
+        result = {"password": None}
+
+        def confirm():
+            result["password"] = pw_var.get()
+            pw_window.destroy()
+
+        tk.Button(
+            pw_window, text="OK",
+            command=confirm,
+            font=("Arial", 10, "bold"),
+            bg="#FFFFFF", fg="black",
+            width=10
+        ).pack(pady=10)
+
+        pw_window.wait_window()
+        return result["password"]
     # === Register Face ===
+    # def register_face(self):
+    #     user_id = simpledialog.askstring("Register Face", "Enter User ID:")
+    #     if not user_id:
+    #         return
+    #     if user_id in self.face_templates:
+    #         overwrite = messagebox.askyesno("User Exists", f"{user_id} already exists. Overwrite?")
+    #         if not overwrite:
+    #             return
+    #     self.user_id = user_id
+    #     self.start_camera("register")
     def register_face(self):
+        # 1. Ask for User ID
         user_id = simpledialog.askstring("Register Face", "Enter User ID:")
         if not user_id:
             return
+
+        # 2. If user exists, confirm overwrite
         if user_id in self.face_templates:
-            overwrite = messagebox.askyesno("User Exists", f"{user_id} already exists. Overwrite?")
+            overwrite = messagebox.askyesno(
+                "User Exists",
+                f"User '{user_id}' already exists.\nDo you want to overwrite?"
+            )
             if not overwrite:
                 return
+
+        # 3. Ask for admin password
+        password = self.ask_password()
+        if password is None:
+            messagebox.showwarning("Cancelled", "Registration cancelled.")
+            return
+
+        # 4. Validate password
+        if password != "admin123":
+            messagebox.showerror("Incorrect Password", "The admin password is incorrect!")
+            return
+
+        # 5. Access granted → start camera for face registration
+        messagebox.showinfo("Access Granted", "Password accepted. Starting face registration...")
+
         self.user_id = user_id
         self.start_camera("register")
 
     # === Delete Face ===
+    # def delete_face(self):
+    #     if not self.face_templates:
+    #         messagebox.showinfo("No Data", "No registered faces found.")
+    #         return
+
+    #     user_list = list(self.face_templates.keys())
+    #     user_to_delete = simpledialog.askstring(
+    #         "Delete Face",
+    #         f"Registered Users:\n\n{', '.join(user_list)}\n\nEnter User ID to Delete:"
+    #     )
+    #     if user_to_delete in self.face_templates:
+    #         del self.face_templates[user_to_delete]
+    #         save_templates(self.face_templates, FACE_TEMPLATE_FILE)
+    #         self.add_message(f"Deleted registered face: {user_to_delete}")
+    #         messagebox.showinfo("Deleted", f"User '{user_to_delete}' deleted successfully.")
+    #     else:
+    #         messagebox.showerror("Not Found", f"No user found with ID: {user_to_delete}")
     def delete_face(self):
+        # Make sure users exist
         if not self.face_templates:
-            messagebox.showinfo("No Data", "No registered faces found.")
+            messagebox.showinfo("No Data", "No registered users found.")
             return
 
+        # 1. Ask for admin password
+        password = self.ask_password()
+        if password is None:
+            messagebox.showwarning("Cancelled", "Operation cancelled.")
+            return
+
+        if password != "admin123":
+            messagebox.showerror("Incorrect Password", "Admin password is incorrect!")
+            return
+
+        # 2. Password correct → show list of users
         user_list = list(self.face_templates.keys())
         user_to_delete = simpledialog.askstring(
-            "Delete Face",
-            f"Registered Users:\n\n{', '.join(user_list)}\n\nEnter User ID to Delete:"
+            "Delete User",
+            f"Registered Users:\n\n{', '.join(user_list)}\n\nEnter User ID to delete:"
         )
+
+        if not user_to_delete:
+            return
+
+        # 3. Delete user if exists
         if user_to_delete in self.face_templates:
             del self.face_templates[user_to_delete]
             save_templates(self.face_templates, FACE_TEMPLATE_FILE)
-            self.add_message(f"Deleted registered face: {user_to_delete}")
+            self.add_message(f"Deleted user: {user_to_delete}")
             messagebox.showinfo("Deleted", f"User '{user_to_delete}' deleted successfully.")
         else:
             messagebox.showerror("Not Found", f"No user found with ID: {user_to_delete}")
@@ -382,13 +507,48 @@ class FacialBiometricLoginApp:
         save_btn.pack(pady=20)
 
     # === Redesigned Popup ===
+    # def show_popup(self, username_fullname, status="success", duration=3000):
+    #     popup = tk.Toplevel(self.root)
+    #     popup.title("")
+    #     popup.configure(bg="#1C2541")
+    #     popup.attributes('-topmost', True)
+    #     popup.overrideredirect(True)
+
+    #     width, height = 400, 150
+    #     screen_width = popup.winfo_screenwidth()
+    #     screen_height = popup.winfo_screenheight()
+    #     x = (screen_width // 2) - (width // 2)
+    #     y = (screen_height // 2) - (height // 2)
+    #     popup.geometry(f"{width}x{height}+{x}+{y}")
+
+    #     colors = {"success": "#00FF00", "error": "#FF5555"}
+    #     fg_color = colors.get(status, "#6FFFE9")
+
+    #     label = tk.Label(popup, text=username_fullname, font=("Helvetica", 14), fg=fg_color, bg="#1C2541")
+    #     label.pack(pady=10)
+
+    #     def close_popup():
+    #         popup.destroy()
+
+    #     # Use after() to schedule the popup to close after the given duration
+    #     popup.after(duration, close_popup)
+
     def show_popup(self, username_fullname, status="success", duration=3000):
+        # --- PREVENT DUPLICATE POPUP ---
+        if self.last_popup_message == (username_fullname, status):
+            return  # Prevent same popup from showing again
+
+        # Save this popup as last shown
+        self.last_popup_message = (username_fullname, status)
+
+        # Create popup window
         popup = tk.Toplevel(self.root)
         popup.title("")
         popup.configure(bg="#1C2541")
         popup.attributes('-topmost', True)
         popup.overrideredirect(True)
 
+        # Size + Center
         width, height = 400, 150
         screen_width = popup.winfo_screenwidth()
         screen_height = popup.winfo_screenheight()
@@ -396,17 +556,33 @@ class FacialBiometricLoginApp:
         y = (screen_height // 2) - (height // 2)
         popup.geometry(f"{width}x{height}+{x}+{y}")
 
+        # Colors
         colors = {"success": "#00FF00", "error": "#FF5555"}
         fg_color = colors.get(status, "#6FFFE9")
 
-        label = tk.Label(popup, text=username_fullname, font=("Helvetica", 14), fg=fg_color, bg="#1C2541")
+        label = tk.Label(
+            popup,
+            text=username_fullname,
+            font=("Helvetica", 14),
+            fg=fg_color,
+            bg="#1C2541"
+        )
         label.pack(pady=10)
 
+        # Auto close popup
         def close_popup():
             popup.destroy()
+            # Reset the last popup after closing so new popups can show
+            self.last_popup_message = None
 
-        # Use after() to schedule the popup to close after the given duration
+        if status in ("success", "error"):
+            self.stop_camera()
+
         popup.after(duration, close_popup)
+
+        # --- STOP CAMERA ON SUCCESS OR ERROR ---
+        # This ensures the camera stops immediately after showing a popup
+        
 
     # === Frame Update ===
     def update_frame(self):
@@ -425,7 +601,7 @@ class FacialBiometricLoginApp:
                 encodings = face_recognition.face_encodings(rgb_frame, faces)
             else:
                 faces, encodings = [], []
-                cv2.putText(frame, "Adjust your face... Starting soon...",
+                cv2.putText(frame, "Keep your face within the guide box... Starting soon...",
                             (10, 470), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 255), 2, cv2.LINE_AA)
 
             # --- CAPTURE ZONE COORDINATES ---
@@ -439,7 +615,7 @@ class FacialBiometricLoginApp:
 
             # Draw capture box
             cv2.rectangle(frame, (CAPTURE_X1, CAPTURE_Y1), (CAPTURE_X2, CAPTURE_Y2), (255, 255, 0), 2)
-            cv2.putText(frame, "Align face inside this box", (CAPTURE_X1, CAPTURE_Y1 - 10),
+            cv2.putText(frame, "Keep your face within the guide box.", (CAPTURE_X1, CAPTURE_Y1 - 10),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 0), 2)
 
             # Draw mode/status
@@ -530,26 +706,27 @@ class FacialBiometricLoginApp:
                             self.add_message(f"User '{self.user_id}' registered successfully.")
                             self.capture_buffer.clear()
                             self.stop_camera()
+                            return
 
                 # Login
                 elif self.mode == "login" and not self.logged_in:
                     match_found = False
                     for name, templates in self.face_templates.items():
                         matches = face_recognition.compare_faces(templates, encoding, tolerance=RECOGNITION_TOLERANCE)
-                        if matches.count(True) >= 8 and matches[0] == True:#max(1, len(templates)//2):
+                        if matches.count(True) >= 4 and matches[0] == True:#max(1, len(templates)//2):
                             server_username, server_full_name = send_login_to_server(name, "login")
                             if server_username is None:  # Handle fail case (e.g. user not registered)
                                 self.status_text = "Login failed"
                                 self.add_message("⚠️ User not registered in the system.")
                                 self.show_popup("User not registered", status="error")  # Show error popup
-                                break
+                                return
                             self.show_popup(f"✅ Login successful for {server_full_name}", status="success")
                             self.add_message(f"✅ Login successful for {server_full_name}")
                             self.logged_in = True
                             match_found = True
                             self.status_text = f"Logged in: {server_full_name}"  # Instead of name, show full name from server
                             self.root.after(3000, self.stop_camera)
-                            break
+                            return
                     if not match_found:
                         self.status_text = "Face not recognized"
                         self.add_message("⚠️ Face detected but not recognized.")
@@ -561,13 +738,13 @@ class FacialBiometricLoginApp:
                     # We don't use self.logged_in_user anymore
                     for name, templates in self.face_templates.items():
                         matches = face_recognition.compare_faces(templates, encoding, tolerance=RECOGNITION_TOLERANCE)
-                        if matches.count(True) >= 8 and matches[0] == True:# max(1, len(templates)//2):
+                        if matches.count(True) >= 4 and matches[0] == True:# max(1, len(templates)//2):
                             server_username, server_full_name = send_login_to_server(name, "logout")
                             if server_username is None:  # Handle fail case (e.g. user not registered or not logged in)
                                 self.status_text = "Logout failed"
                                 self.add_message("⚠️ User not registered or not logged in.")
                                 self.show_popup("User not registered or not logged in", status="error")  # Show error popup
-                                break
+                                return
                             self.show_popup(f"✅ Logout successful for {server_full_name}", status="success")
                             self.add_message(f"✅ Logout successful for {server_username}")
                             match_found = True
@@ -577,7 +754,7 @@ class FacialBiometricLoginApp:
                             
 
                             self.root.after(3000, self.stop_camera)
-                            break
+                            return
                     if not match_found:
                         self.status_text = "Face does not match registered user"
                         self.add_message("⚠️ Face detected but does not match any registered user.")
