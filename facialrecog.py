@@ -131,7 +131,7 @@ class FacialBiometricLoginApp:
         logo_label.image = logo_photo  # keep a reference
         logo_label.pack(side=tk.LEFT, padx=(0, 10))
 
-        # Title text next to the logo
+        # Title text next to the logos
         self.title_text = "DAHFI FACIAL BIOMETRIC LOGIN SYSTEM"
         self.title_label = tk.Label(
             title_frame,  # <-- attach to title_frame
