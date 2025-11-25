@@ -66,7 +66,7 @@ def send_login_to_server(user_id, status):
 
 # === CONFIGURATION ===
 FACE_TEMPLATE_FILE = "face_templates.npz"
-CAPTURE_FRAMES = 5
+CAPTURE_FRAMES = 15
 RECOGNITION_TOLERANCE = 0.32  # lower = stricter
 
 # === Load Haar Cascade ===
@@ -165,8 +165,8 @@ class FacialBiometricLoginApp:
         self.add_button("Delete Registered Face", self.delete_face)
         self.add_button("Stop Camera", self.stop_camera)  # <<< New button
         self.add_button("Settings", self.open_settings)  # Settings button
-        self.add_button("Login with ID Only", self.login_with_id_only)
-        self.add_button("Logout with ID Only", self.logout_with_id_only)
+        # self.add_button("Login with ID Only", self.login_with_id_only)
+        # self.add_button("Logout with ID Only", self.logout_with_id_only)
 
         # --- Message Area ---
         msg_label = tk.Label(
@@ -478,7 +478,7 @@ class FacialBiometricLoginApp:
                     # We don't use self.logged_in_user anymore
                     for name, templates in self.face_templates.items():
                         matches = face_recognition.compare_faces(templates, encoding, tolerance=RECOGNITION_TOLERANCE)
-                        if matches.count(True) >= max(1, len(templates)//2):
+                        if matches.count(True) >= 4 and matches[0] == True:# max(1, len(templates)//2):
                             server_username, server_full_name = send_login_to_server(name, "logout")
                             if server_username is None:  # Handle fail case (e.g. user not registered or not logged in)
                                 self.status_text = "Logout failed"
