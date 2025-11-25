@@ -66,8 +66,10 @@ def send_login_to_server(user_id, status):
 
 # === CONFIGURATION ===
 FACE_TEMPLATE_FILE = "face_templates.npz"
-CAPTURE_FRAMES = 15
+CAPTURE_FRAMES = 10
 RECOGNITION_TOLERANCE = 0.32  # lower = stricter
+MIN_FACE_SIZE = 170#120   # too far
+MAX_FACE_SIZE = 200#300   # too close
 
 # === Load Haar Cascade ===
 face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
@@ -416,7 +418,7 @@ class FacialBiometricLoginApp:
             frame = cv2.resize(frame, (640, 480))
             rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             elapsed = time.time() - getattr(self, 'start_time', 0)
-            detect_faces = elapsed >= 2  # ✅ start detecting after 3 seconds
+            detect_faces = elapsed >= 2  # start detecting after 2 seconds
 
             if detect_faces:
                 faces = face_recognition.face_locations(rgb_frame)
@@ -425,6 +427,20 @@ class FacialBiometricLoginApp:
                 faces, encodings = [], []
                 cv2.putText(frame, "Adjust your face... Starting soon...",
                             (10, 470), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 255), 2, cv2.LINE_AA)
+
+            # --- CAPTURE ZONE COORDINATES ---
+            CAPTURE_X1, CAPTURE_Y1 = 170, 100
+            CAPTURE_X2, CAPTURE_Y2 = 470, 380
+
+            # --- BLUR OUTSIDE BOX ---
+            blurred_frame = cv2.GaussianBlur(frame, (25, 25), 0)
+            blurred_frame[CAPTURE_Y1:CAPTURE_Y2, CAPTURE_X1:CAPTURE_X2] = frame[CAPTURE_Y1:CAPTURE_Y2, CAPTURE_X1:CAPTURE_X2]
+            frame = blurred_frame
+
+            # Draw capture box
+            cv2.rectangle(frame, (CAPTURE_X1, CAPTURE_Y1), (CAPTURE_X2, CAPTURE_Y2), (255, 255, 0), 2)
+            cv2.putText(frame, "Align face inside this box", (CAPTURE_X1, CAPTURE_Y1 - 10),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 0), 2)
 
             # Draw mode/status
             mode_text = f"MODE: {self.mode.upper() if self.mode else 'IDLE'}"
@@ -435,25 +451,92 @@ class FacialBiometricLoginApp:
                             cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2, cv2.LINE_AA)
 
             for (top, right, bottom, left), encoding in zip(faces, encodings):
+                # Draw face rectangle
                 cv2.rectangle(frame, (left, top), (right, bottom), (0, 255, 0), 2)
 
+                # --- FACE CENTER AND CAPTURE ZONE CHECK ---
+                face_center_x = (left + right) // 2
+                face_center_y = (top + bottom) // 2
+
+                if not (CAPTURE_X1 <= face_center_x <= CAPTURE_X2 and CAPTURE_Y1 <= face_center_y <= CAPTURE_Y2):
+                    self.status_text = "Move your face inside the box"
+                    continue  # Skip processing until face is inside zone
+                # --- DISTANCE CHECK ---
+                face_height = bottom - top
+                box_height = CAPTURE_Y2 - CAPTURE_Y1
+
+                # Define min/max size relative to box height
+                min_face_size = int(0.5 * box_height)  # face should be at least 50% of box height
+                max_face_size = int(0.6 * box_height)  # face should be at most 50% of box height
+
+                if face_height < min_face_size:
+                    self.status_text = "Move closer to the camera"
+                    self.add_message("Move closer to the camera")
+                    continue
+
+                if face_height > max_face_size:
+                    self.status_text = "Move back from the camera"
+                    self.add_message("Move back from the camera")
+                    continue
+
                 # Registration
+                # if self.mode == "register":
+                #     self.capture_buffer.append(encoding)
+                #     self.add_message(f"Captured frame {len(self.capture_buffer)}/{CAPTURE_FRAMES}")
+                #     if len(self.capture_buffer) >= CAPTURE_FRAMES:
+                #         self.face_templates[self.user_id] = self.capture_buffer.copy()
+                #         save_templates(self.face_templates, FACE_TEMPLATE_FILE)
+                #         self.show_popup(f"Face Registered: {self.user_id}", status="success")
+                #         self.add_message(f"User '{self.user_id}' registered successfully.")
+                #         self.stop_camera()
+
                 if self.mode == "register":
-                    self.capture_buffer.append(encoding)
-                    self.add_message(f"Captured frame {len(self.capture_buffer)}/{CAPTURE_FRAMES}")
-                    if len(self.capture_buffer) >= CAPTURE_FRAMES:
-                        self.face_templates[self.user_id] = self.capture_buffer.copy()
-                        save_templates(self.face_templates, FACE_TEMPLATE_FILE)
-                        self.show_popup(f"Face Registered: {self.user_id}", status="success")
-                        self.add_message(f"User '{self.user_id}' registered successfully.")
-                        self.stop_camera()
+                    for (top, right, bottom, left), encoding in zip(faces, encodings):
+                        # Calculate face center
+                        face_center_x = (left + right) // 2
+                        face_center_y = (top + bottom) // 2
+
+                        # Step 1: Align face inside box
+                        if not (CAPTURE_X1 <= face_center_x <= CAPTURE_X2 and
+                                CAPTURE_Y1 <= face_center_y <= CAPTURE_Y2):
+                            self.status_text = "Step 1: Move your face inside the box"
+                            break  # wait until user aligns
+
+                        # Step 2: Adjust distance (face size)
+                        face_height = bottom - top
+                        box_height = CAPTURE_Y2 - CAPTURE_Y1
+                        min_face_size = int(0.5 * box_height)
+                        max_face_size = int(0.6 * box_height)
+
+                        if face_height < min_face_size:
+                            self.status_text = "Step 2: Move closer to the camera"
+                            break  # wait until user moves closer
+                        if face_height > max_face_size:
+                            self.status_text = "Step 2: Move back from the camera"
+                            break  # wait until user moves back
+
+                        # Step 3: Capture frame
+                        if len(self.capture_buffer) < CAPTURE_FRAMES:
+                            self.capture_buffer.append(encoding)
+                            frames_captured = len(self.capture_buffer)
+                            self.status_text = f"Step 3: Capturing face... Frame {frames_captured}/{CAPTURE_FRAMES}"
+                            self.add_message(f"Captured frame {frames_captured}/{CAPTURE_FRAMES}")
+
+                        # Step 4: Save templates once enough frames are captured
+                        if len(self.capture_buffer) >= CAPTURE_FRAMES:
+                            self.face_templates[self.user_id] = self.capture_buffer.copy()
+                            save_templates(self.face_templates, FACE_TEMPLATE_FILE)
+                            self.show_popup(f"Face Registered: {self.user_id}", status="success")
+                            self.add_message(f"User '{self.user_id}' registered successfully.")
+                            self.capture_buffer.clear()
+                            self.stop_camera()
 
                 # Login
                 elif self.mode == "login" and not self.logged_in:
                     match_found = False
                     for name, templates in self.face_templates.items():
                         matches = face_recognition.compare_faces(templates, encoding, tolerance=RECOGNITION_TOLERANCE)
-                        if matches.count(True) >= 4 and matches[0] == True:#max(1, len(templates)//2):
+                        if matches.count(True) >= 8 and matches[0] == True:#max(1, len(templates)//2):
                             server_username, server_full_name = send_login_to_server(name, "login")
                             if server_username is None:  # Handle fail case (e.g. user not registered)
                                 self.status_text = "Login failed"
@@ -478,7 +561,7 @@ class FacialBiometricLoginApp:
                     # We don't use self.logged_in_user anymore
                     for name, templates in self.face_templates.items():
                         matches = face_recognition.compare_faces(templates, encoding, tolerance=RECOGNITION_TOLERANCE)
-                        if matches.count(True) >= 4 and matches[0] == True:# max(1, len(templates)//2):
+                        if matches.count(True) >= 8 and matches[0] == True:# max(1, len(templates)//2):
                             server_username, server_full_name = send_login_to_server(name, "logout")
                             if server_username is None:  # Handle fail case (e.g. user not registered or not logged in)
                                 self.status_text = "Logout failed"
