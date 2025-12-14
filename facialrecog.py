@@ -560,19 +560,21 @@ class FacialBiometricLoginApp:
         colors = {"success": "#00FF00", "error": "#FF5555"}
         fg_color = colors.get(status, "#6FFFE9")
 
+        # Wrapped Label
         label = tk.Label(
             popup,
             text=username_fullname,
             font=("Helvetica", 14),
             fg=fg_color,
-            bg="#1C2541"
+            bg="#1C2541",
+            wraplength=width-20,  # wrap text to fit the popup width
+            justify="center"      # center the text
         )
-        label.pack(pady=10)
+        label.pack(pady=20, padx=10)
 
         # Auto close popup
         def close_popup():
             popup.destroy()
-            # Reset the last popup after closing so new popups can show
             self.last_popup_message = None
 
         if status in ("success", "error"):
@@ -580,8 +582,6 @@ class FacialBiometricLoginApp:
 
         popup.after(duration, close_popup)
 
-        # --- STOP CAMERA ON SUCCESS OR ERROR ---
-        # This ensures the camera stops immediately after showing a popup
         
 
     # === Frame Update ===
@@ -717,8 +717,8 @@ class FacialBiometricLoginApp:
                             server_username, server_full_name = send_login_to_server(name, "login")
                             if server_username is None:  # Handle fail case (e.g. user not registered)
                                 self.status_text = "Login failed"
-                                self.add_message("⚠️ User not registered in the system.")
-                                self.show_popup("User not registered", status="error")  # Show error popup
+                                self.show_popup(f"❌ {server_full_name}", status="error")
+                                self.add_message(f"⚠️ {server_full_name}.")
                                 return
                             self.show_popup(f"✅ Login successful for {server_full_name}", status="success")
                             self.add_message(f"✅ Login successful for {server_full_name}")
@@ -742,8 +742,8 @@ class FacialBiometricLoginApp:
                             server_username, server_full_name = send_login_to_server(name, "logout")
                             if server_username is None:  # Handle fail case (e.g. user not registered or not logged in)
                                 self.status_text = "Logout failed"
-                                self.add_message("⚠️ User not registered or not logged in.")
-                                self.show_popup("User not registered or not logged in", status="error")  # Show error popup
+                                self.show_popup(f"❌ {server_full_name}", status="error")
+                                self.add_message(f"⚠️ {server_full_name}.")
                                 return
                             self.show_popup(f"✅ Logout successful for {server_full_name}", status="success")
                             self.add_message(f"✅ Logout successful for {server_username}")
