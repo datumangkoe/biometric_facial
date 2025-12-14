@@ -190,8 +190,8 @@ class FacialBiometricLoginApp:
         self.add_button("Delete Registered Face", self.delete_face)
         self.add_button("Stop Camera", self.stop_camera)  # <<< New button
         self.add_button("Settings", self.open_settings)  # Settings button
-        # self.add_button("Login with ID Only", self.login_with_id_only)
-        # self.add_button("Logout with ID Only", self.logout_with_id_only)
+        self.add_button("Login with ID Number", self.login_with_id_only)
+        self.add_button("Logout with ID Number", self.logout_with_id_only)
 
         # --- Message Area ---
         msg_label = tk.Label(
