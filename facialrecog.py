@@ -456,7 +456,7 @@ class FacialBiometricLoginApp:
             return
 
         # Success
-        self.show_popup(f"✅ Login Successful for {server_full_name}", status="success")
+        self.show_popup(f"✅ Logout Successful for {server_full_name}", status="success")
         self.add_message(f"User '{server_full_name}' logged in successfully.")
 
     # === Logout User ===
